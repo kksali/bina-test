@@ -1,48 +1,39 @@
 import streamlit as st
 import pandas as pd
-import requests
+from binance.client import Client
 
 # Set up the page
 st.set_page_config(page_title="Getting BREAKOUT Data", page_icon="💰")
 
+# Initialize the Binance client without API key
+client = Client()
+
 @st.cache_data
-def fetch_binance_usdt_pairs():
-    url = "https://api.binance.com/api/v3/ticker/price"
-    headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'
-    }
+def fetch_binance_pairs():
     try:
-        response = requests.get(url, headers=headers)
-        response.raise_for_status()
-        data = response.json()
-        usdt_pairs = [item['symbol'] for item in data if 'USDT' in item['symbol']]
+        exchange_info = client.get_exchange_info()
+        usdt_pairs = [symbol['symbol'] for symbol in exchange_info['symbols'] if symbol['quoteAsset'] == 'USDT']
         return usdt_pairs
-    except requests.exceptions.RequestException as e:
+    except Exception as e:
         st.error(f"Error fetching data from Binance: {e}")
         return []
 
 @st.cache_data
 def fetch_binance_historical_data(symbol):
-    url = f"https://api.binance.com/api/v3/klines?symbol={symbol}&interval=1d&limit=30"
-    headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'
-    }
     try:
-        response = requests.get(url, headers=headers)
-        response.raise_for_status()
-        data = response.json()
-        df = pd.DataFrame(data, columns=["Timestamp", "Open", "High", "Low", "Close", "Volume", "CloseTime",
-                                         "QuoteAssetVolume", "NumberOfTrades", "TakerBuyBaseAssetVolume",
-                                         "TakerBuyQuoteAssetVolume", "Ignore"])
-        df['Timestamp'] = pd.to_datetime(df['Timestamp'], unit='ms')
+        klines = client.get_historical_klines(symbol, Client.KLINE_INTERVAL_1DAY, "30 days ago UTC")
+        df = pd.DataFrame(klines, columns=["OpenTime", "Open", "High", "Low", "Close", "Volume", 
+                                             "CloseTime", "QuoteAssetVolume", "NumberOfTrades", 
+                                             "TakerBuyBaseAssetVolume", "TakerBuyQuoteAssetVolume", "Ignore"])
+        df['OpenTime'] = pd.to_datetime(df['OpenTime'], unit='ms')
         df['Close'] = pd.to_numeric(df['Close'])
-        return df[['Timestamp', 'Open', 'High', 'Low', 'Close', 'Volume']]
-    except requests.exceptions.RequestException as e:
+        return df[['OpenTime', 'Open', 'High', 'Low', 'Close', 'Volume']]
+    except Exception as e:
         st.error(f"Error fetching historical data for {symbol}: {e}")
         return pd.DataFrame()  # Return an empty DataFrame on error
 
 def main():
-    pairs = fetch_binance_usdt_pairs()
+    pairs = fetch_binance_pairs()
 
     if not pairs:
         st.warning("No trading pairs found or there was an error fetching them.")
@@ -63,11 +54,12 @@ def main():
         st.write(historical_data)
 
         # Optional: Plotting the closing prices
-        st.line_chart(historical_data.set_index('Timestamp')['Close'])
+        st.line_chart(historical_data.set_index('OpenTime')['Close'])
     else:
         st.warning("No historical data available for this trading pair.")
 
 if __name__ == "__main__":
     main()
+
 
 
