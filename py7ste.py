@@ -6,8 +6,8 @@ import requests
 st.set_page_config(page_title="Getting BREAKOUT Data", page_icon="💰")
 
 @st.cache_data
-def fetch_binance_pairs():
-    url = "https://api.binance.com/api/v3/exchangeInfo"
+def fetch_binance_usdt_pairs():
+    url = "https://api.binance.com/api/v3/ticker/price"
     headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'
     }
@@ -15,12 +15,8 @@ def fetch_binance_pairs():
         response = requests.get(url, headers=headers)
         response.raise_for_status()
         data = response.json()
-        if 'symbols' in data:
-            usdt_pairs = [symbol['symbol'] for symbol in data['symbols'] if symbol['quoteAsset'] == 'USDT']
-            return usdt_pairs
-        else:
-            st.error("Unexpected response structure: 'symbols' key not found.")
-            return []
+        usdt_pairs = [item['symbol'] for item in data if 'USDT' in item['symbol']]
+        return usdt_pairs
     except requests.exceptions.RequestException as e:
         st.error(f"Error fetching data from Binance: {e}")
         return []
@@ -46,7 +42,7 @@ def fetch_binance_historical_data(symbol):
         return pd.DataFrame()  # Return an empty DataFrame on error
 
 def main():
-    pairs = fetch_binance_pairs()
+    pairs = fetch_binance_usdt_pairs()
 
     if not pairs:
         st.warning("No trading pairs found or there was an error fetching them.")
@@ -73,4 +69,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
