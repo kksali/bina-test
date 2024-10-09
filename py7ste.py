@@ -6,7 +6,7 @@ from binance.client import Client
 st.set_page_config(page_title="Getting BREAKOUT Data", page_icon="💰")
 
 # Initialize the Binance client without API key
-client = Client()
+client = Client("", "")
 
 @st.cache_data
 def fetch_binance_pairs():
@@ -15,7 +15,7 @@ def fetch_binance_pairs():
         usdt_pairs = [symbol['symbol'] for symbol in exchange_info['symbols'] if symbol['quoteAsset'] == 'USDT']
         return usdt_pairs
     except Exception as e:
-        st.error(f"Error fetching data from Binance: {e}")
+        st.error(f"Error fetching trading pairs: {e}")
         return []
 
 @st.cache_data
@@ -30,7 +30,7 @@ def fetch_binance_historical_data(symbol):
         return df[['OpenTime', 'Open', 'High', 'Low', 'Close', 'Volume']]
     except Exception as e:
         st.error(f"Error fetching historical data for {symbol}: {e}")
-        return pd.DataFrame()  # Return an empty DataFrame on error
+        return pd.DataFrame()
 
 def main():
     pairs = fetch_binance_pairs()
@@ -50,16 +50,14 @@ def main():
     st.title(f"Historical Data for {selected_pair}")
     
     if not historical_data.empty:
-        # Show the data in a table
         st.write(historical_data)
-
-        # Optional: Plotting the closing prices
         st.line_chart(historical_data.set_index('OpenTime')['Close'])
     else:
         st.warning("No historical data available for this trading pair.")
 
 if __name__ == "__main__":
     main()
+
 
 
 
